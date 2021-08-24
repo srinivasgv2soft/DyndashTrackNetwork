@@ -1,0 +1,50 @@
+name: Build and deploy TrackNetworkDNC
+
+on:
+  push:
+    paths: 
+       - 'TrackNetworkDNC/**'
+    branches: [ develop ]
+  workflow_dispatch:
+  
+env:
+  DOTNET_VERSION: '3.1.x'
+  TRACKNEWTWORKDNC_ROOT_PATH: './TrackNetworkDNC'
+  AZURE_WEBAPP_PACKAGE_PATH: './TRACKNETWORKDNC/output'
+    
+  
+jobs:
+  build-and-deploy-dev:
+    runs-on: ubuntu-latest
+    environment: Development
+
+    steps:
+      - name: 'Checkout Github Action'
+        uses: actions/checkout@master
+    
+      - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: 'Remove local nuget config'
+        run: |
+           rm ./nuget.config
+    
+    
+      - name: 'Build'
+        run: |
+            rm ./web.config
+            dotnet new nugetconfig
+            dotnet nuget add source --username "${{ secrets.NUGET_USER }}" --password "${{ secrets.NUGET_TOKEN }}" --name github --store-password-in-clear-text "https://nuget.pkg.github.com/Arcadis/index.json"
+            dotnet restore ./TrackNetworkDNC.csproj /p:Platform=AnyCPU
+            dotnet build -c Release /p:Platform=AnyCPU --no-restore
+            dotnet publish -c Release -o ./output /p:Platform=AnyCPU --no-build --no-restore
+        working-directory: ${{ env.WEB_ROOT_PATH }}
+ 
+      - name: 'Deploy'
+        uses: azure/webapps-deploy@v2
+        with: 
+            app-name: dyndash_TrackNetwork_DNC
+            publish-profile: ${{ secrets.TRACKNETWORKDNC_PUBLISH_PROFILE }}
+            package: '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}'
