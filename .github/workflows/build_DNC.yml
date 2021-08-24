@@ -40,7 +40,7 @@ jobs:
             dotnet restore ./TrackNetworkDNC.csproj /p:Platform=AnyCPU
             dotnet build -c Release /p:Platform=AnyCPU --no-restore
             dotnet publish -c Release -o ./output /p:Platform=AnyCPU --no-build --no-restore
-        working-directory: ${{ env.WEB_ROOT_PATH }}
+        working-directory: ${{ env.TRACKNEWTWORKDNC_ROOT_PATH }}
  
       - name: 'Deploy'
         uses: azure/webapps-deploy@v2
