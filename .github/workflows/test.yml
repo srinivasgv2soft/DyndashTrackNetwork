@@ -1,0 +1,59 @@
+name: Build and Deploy Test
+
+on:
+  push:
+    paths:
+      - 'Tests/**'
+    branches: [ develop ]
+  workflow_dispatch:
+
+env:
+  TEST_ROOT_PATH: '/Tests/test.Dyndash.TrackNetwork'
+  DOTNET_VERSION: '3.1.x'
+  AZURE_WEBAPP_PACKAGE_PATH: './test/output'
+  TEST_PROJECT_FILE: 'test.Dyndash.TrackNetwork.csproj'
+  
+  RUN_TESTS: false
+  
+jobs:
+  build-and-deploy-dev:
+    runs-on: ubuntu-latest
+    environment: Development
+    
+    steps:
+      - name: 'Checkout Github Action'
+        uses: actions/checkout@master
+    
+      - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: 'Test'
+        if: ${{ env.RUN_TESTS == true }}
+        run: |
+            dotnet new nugetconfig
+            dotnet nuget add source --username "${{ secrets.NUGET_USER }}" --password "${{ secrets.NUGET_TOKEN }}" --name github --store-password-in-clear-text "https://nuget.pkg.github.com/Arcadis/index.json"
+            dotnet restore ${{ env.TEST_PROJECT_FILE }}
+            dotnet test ${{ env.TEST_PROJECT_FILE }} 
+        working-directory: ${{ env.TEST_ROOT_PATH }}
+
+      - name: 'Build'
+        run: |
+            dotnet new nugetconfig
+            dotnet nuget add source --username "${{ secrets.NUGET_USER }}" --password "${{ secrets.NUGET_TOKEN }}" --name github --store-password-in-clear-text "https://nuget.pkg.github.com/Arcadis/index.json"
+            dotnet restore ${{ env.TEST_PROJECT_FILE }} /p:Platform=AnyCPU
+            dotnet build -c Release /p:Platform=AnyCPU --no-restore
+            dotnet publish -c Release -o ./output /p:Platform=AnyCPU --no-build --no-restore
+        working-directory: ${{ env.TEST_ROOT_PATH }}
+      
+      - name: 'Deploy'
+        uses: azure/webapps-deploy@v2
+        with: 
+            app-name: dyndash-test
+            publish-profile: ${{ secrets.TEST_PUBLISH_PROFILE }}
+            package: '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}'
+          
+          
+          
+          
